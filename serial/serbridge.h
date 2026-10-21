@@ -23,6 +23,7 @@ typedef struct serbridgeConnData {
 	struct espconn *conn;
 	enum connModes conn_mode;     // connection mode
   uint8_t        telnet_state;
+  uint8_t        pgm_hold;      // how many times this connection incremented in_mcu_flashing
 	uint16         txbufferlen;   // length of data in txbuffer
 	char           *txbuffer;     // buffer for the data to send
   char           *sentbuffer;   // buffer sent, awaiting callback to get freed

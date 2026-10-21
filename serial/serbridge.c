@@ -159,6 +159,7 @@ telnetUnwrap(serbridgeConnData *conn, uint8_t *inBuf, int len)
         else { os_printf("Telnet: isp: no pin\n"); }
 #endif
         in_mcu_flashing++;
+        conn->pgm_hold++;
         break;
       case RTS_OFF:
         if (mcu_isp_pin >= 0) {
@@ -168,7 +169,10 @@ telnetUnwrap(serbridgeConnData *conn, uint8_t *inBuf, int len)
           GPIO_OUTPUT_SET(mcu_isp_pin, 1);
           os_delay_us(100L);
         }
-        if (in_mcu_flashing > 0) in_mcu_flashing--;
+        if (conn->pgm_hold > 0) {
+          conn->pgm_hold--;
+          if (in_mcu_flashing > 0) in_mcu_flashing--;
+        }
         break;
       case BRK_REQ: {
         char respBuf[7] = { IAC, SB, ComPortOpt, SetControl, tn_break, IAC, SE };
@@ -338,6 +342,7 @@ serbridgeRecvCb(void *arg, char *data, unsigned short len)
     os_delay_us(1000L); // wait a millisecond before writing to the UART below
     conn->conn_mode = cmPGM;
     in_mcu_flashing++; // disable SLIP so it doesn't interfere with flashing
+    conn->pgm_hold++;
     serledFlash(50); // short blink on serial LED
     return;
   }
@@ -492,6 +497,13 @@ serbridgeDisconCb(void *arg)
   if (conn->txbuffer != NULL) os_free(conn->txbuffer);
   conn->txbuffer = NULL;
   conn->txbufferlen = 0;
+  // Re-enable SLIP: drop whatever this connection added to in_mcu_flashing. Without this a
+  // single byte sent to the programming port (or the Arduino/ARM reset sequence on the primary
+  // port) left SLIP disabled until the esp8266 was rebooted.
+  if (conn->pgm_hold > 0) {
+    in_mcu_flashing = in_mcu_flashing > conn->pgm_hold ? in_mcu_flashing - conn->pgm_hold : 0;
+    conn->pgm_hold = 0;
+  }
   // Send reset to attached uC if it was in programming mode
   if (conn->conn_mode == cmPGM && mcu_reset_pin >= 0) {
     if (mcu_isp_pin >= 0) GPIO_OUTPUT_SET(mcu_isp_pin, 1);
