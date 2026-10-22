@@ -4,6 +4,10 @@
 #include "config.h"
 #include "serled.h"
 #include "cgiwifi.h"
+#include "slip.h"
+
+extern uint8_t in_mcu_flashing;
+extern bool cmdInSync;
 
 #ifdef MQTT
 #include "mqtt.h"
@@ -25,8 +29,10 @@ mqttStatusMsg(char *buf) {
 
   // compose MQTT message
   return os_sprintf(buf,
-    "{\"rssi\":%d, \"heap_free\":%ld}",
-    rssi, (unsigned long)system_get_free_heap_size());
+    "{\"rssi\":%d, \"heap_free\":%ld, \"sync\":%d, \"pgm\":%d, \"pkt\":%lu, \"crc\":%lu, \"junk\":%lu, \"ovf\":%lu}",
+    rssi, (unsigned long)system_get_free_heap_size(), cmdInSync ? 1 : 0, in_mcu_flashing,
+    (unsigned long)slip_pkt_ok, (unsigned long)slip_bad_crc, (unsigned long)slip_junk,
+    (unsigned long)slip_overflow);
 }
 
 // Timer callback to send an RSSI update to a monitoring system
@@ -35,7 +41,7 @@ static void ICACHE_FLASH_ATTR mqttStatusCb(void *v) {
     mqttClient.connState != MQTT_CONNECTED)
     return;
 
-  char buf[128];
+  char buf[192];
   mqttStatusMsg(buf);
   MQTT_Publish(&mqttClient, flashConfig.mqtt_status_topic, buf, os_strlen(buf), 1, 0);
 }

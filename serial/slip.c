@@ -32,6 +32,9 @@ static bool slip_inpkt;         // true when we're after SLIP_START and before S
 static char slip_buf[SLIP_MAX]; // buffer for current SLIP packet
 static short slip_len;          // accumulated length in slip_buf
 
+// counters reported in the MQTT status message
+uint32_t slip_pkt_ok, slip_bad_crc, slip_junk, slip_overflow;
+
 // SLIP process a packet or a bunch of debug console chars
 static void ICACHE_FLASH_ATTR
 slip_process() {
@@ -41,8 +44,10 @@ slip_process() {
     uint16_t crc = crc16_data((uint8_t*)slip_buf, slip_len-2, 0);
     uint16_t rcv = ((uint16_t)slip_buf[slip_len-2]) | ((uint16_t)slip_buf[slip_len-1] << 8);
     if (crc == rcv) {
+      slip_pkt_ok++;
       cmdParsePacket((uint8_t*)slip_buf, slip_len-2);
     } else {
+      slip_bad_crc++;
       os_printf("SLIP: bad CRC, crc=%04x rcv=%04x len=%d\n", crc, rcv, slip_len);
 
       for (short i=0; i<slip_len; i++) {
@@ -94,8 +99,25 @@ slip_parse_char(char c) {
     if (slip_len == 1 && slip_printable(slip_buf[0]) && slip_printable(c)) {
       // start of packet and it's a printable character, we're gonna assume that this is console text
       slip_inpkt = false;
+    } else if (slip_len == 1 && slip_inpkt && c != 0) {
+      // A packet starts with a 16-bit little-endian command and all commands are < 256, so the
+      // second byte is always 0. Anything else is a stray byte (e.g. line noise while the MCU
+      // resets) in front of console text. Drop it, otherwise the parser stays in packet mode and
+      // silently swallows all console output until the next SLIP_END.
+      slip_junk++;
+      slip_len = 0;
+      if (!slip_printable(c)) { slip_junk++; return; }
     }
-    if (slip_len < SLIP_MAX) slip_buf[slip_len++] = c;
+    if (slip_len < SLIP_MAX) {
+      slip_buf[slip_len++] = c;
+    } else if (slip_inpkt) {
+      // no packet is this long: it was console text after all, show it instead of dropping it
+      slip_overflow++;
+      console_process(slip_buf, slip_len);
+      slip_inpkt = false;
+      slip_len = 0;
+      slip_buf[slip_len++] = c;
+    }
   }
 }
 
