@@ -278,6 +278,34 @@ serbridgeReset()
 #endif
 }
 
+// Long reset pulse for a plain MCU restart (console reset), released by a timer so the ESP keeps
+// running. The programming paths keep the short pulse above because they talk to the bootloader
+// right after it.
+#define MCU_LONG_RESET_MS 200
+static ETSTimer mcuResetTimer;
+
+static void ICACHE_FLASH_ATTR
+serbridgeResetRelease(void *arg)
+{
+  GPIO_OUTPUT_SET(mcu_reset_pin, 1);
+}
+
+void ICACHE_FLASH_ATTR
+serbridgeResetLong()
+{
+  if (mcu_reset_pin < 0) {
+    serbridgeReset();
+    return;
+  }
+#ifdef SERBR_DBG
+  os_printf("MCU reset gpio%d %dms\n", mcu_reset_pin, MCU_LONG_RESET_MS);
+#endif
+  os_timer_disarm(&mcuResetTimer);
+  GPIO_OUTPUT_SET(mcu_reset_pin, 0);
+  os_timer_setfn(&mcuResetTimer, serbridgeResetRelease, NULL);
+  os_timer_arm(&mcuResetTimer, MCU_LONG_RESET_MS, 0);
+}
+
 // Receive callback
 static void ICACHE_FLASH_ATTR
 serbridgeRecvCb(void *arg, char *data, unsigned short len)

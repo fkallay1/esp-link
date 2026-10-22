@@ -36,6 +36,7 @@ void ICACHE_FLASH_ATTR serbridgeInit(int port1, int port2);
 void ICACHE_FLASH_ATTR serbridgeInitPins(void);
 void ICACHE_FLASH_ATTR serbridgeUartCb(char *buf, short len);
 void ICACHE_FLASH_ATTR serbridgeReset();
+void ICACHE_FLASH_ATTR serbridgeResetLong();
 
 int  ICACHE_FLASH_ATTR serbridgeInMCUFlashing();
 

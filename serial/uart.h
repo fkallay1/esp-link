@@ -35,5 +35,7 @@ void uart0_set_tx_enable_pin(int8_t pin);
 extern uint32_t uart_rx_bytes, uart_frm_errs, uart_rx_dropped;
 // RX pin level right now (1 = idle high)
 #define UART0_RXD_LEVEL() ((READ_PERI_REG(UART_STATUS(0)) & UART_RXD) ? 1 : 0)
+// bytes waiting in the RX FIFO right now (stays > 0 if the RX interrupt got stuck)
+#define UART0_RXFIFO_COUNT() ((int)((READ_PERI_REG(UART_STATUS(0)) >> UART_RXFIFO_CNT_S) & UART_RXFIFO_CNT))
 
 #endif /* __UART_H__ */

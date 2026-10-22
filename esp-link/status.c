@@ -30,11 +30,11 @@ mqttStatusMsg(char *buf) {
 
   // compose MQTT message
   return os_sprintf(buf,
-    "{\"rssi\":%d, \"heap_free\":%ld, \"sync\":%d, \"pgm\":%d, \"pkt\":%lu, \"crc\":%lu, \"junk\":%lu, \"ovf\":%lu, \"rx\":%lu, \"frm\":%lu, \"drop\":%lu, \"rxd\":%d}",
+    "{\"rssi\":%d, \"heap_free\":%ld, \"sync\":%d, \"pgm\":%d, \"pkt\":%lu, \"crc\":%lu, \"junk\":%lu, \"ovf\":%lu, \"rx\":%lu, \"frm\":%lu, \"drop\":%lu, \"rxd\":%d, \"fifo\":%d}",
     rssi, (unsigned long)system_get_free_heap_size(), cmdInSync ? 1 : 0, in_mcu_flashing,
     (unsigned long)slip_pkt_ok, (unsigned long)slip_bad_crc, (unsigned long)slip_junk,
     (unsigned long)slip_overflow, (unsigned long)uart_rx_bytes, (unsigned long)uart_frm_errs,
-    (unsigned long)uart_rx_dropped, UART0_RXD_LEVEL());
+    (unsigned long)uart_rx_dropped, UART0_RXD_LEVEL(), UART0_RXFIFO_COUNT());
 }
 
 // Timer callback to send an RSSI update to a monitoring system
