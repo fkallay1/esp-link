@@ -5,6 +5,7 @@
 #include "serled.h"
 #include "cgiwifi.h"
 #include "slip.h"
+#include "uart.h"
 
 extern uint8_t in_mcu_flashing;
 extern bool cmdInSync;
@@ -29,10 +30,11 @@ mqttStatusMsg(char *buf) {
 
   // compose MQTT message
   return os_sprintf(buf,
-    "{\"rssi\":%d, \"heap_free\":%ld, \"sync\":%d, \"pgm\":%d, \"pkt\":%lu, \"crc\":%lu, \"junk\":%lu, \"ovf\":%lu}",
+    "{\"rssi\":%d, \"heap_free\":%ld, \"sync\":%d, \"pgm\":%d, \"pkt\":%lu, \"crc\":%lu, \"junk\":%lu, \"ovf\":%lu, \"rx\":%lu, \"frm\":%lu, \"drop\":%lu, \"rxd\":%d}",
     rssi, (unsigned long)system_get_free_heap_size(), cmdInSync ? 1 : 0, in_mcu_flashing,
     (unsigned long)slip_pkt_ok, (unsigned long)slip_bad_crc, (unsigned long)slip_junk,
-    (unsigned long)slip_overflow);
+    (unsigned long)slip_overflow, (unsigned long)uart_rx_bytes, (unsigned long)uart_frm_errs,
+    (unsigned long)uart_rx_dropped, UART0_RXD_LEVEL());
 }
 
 // Timer callback to send an RSSI update to a monitoring system
@@ -41,7 +43,7 @@ static void ICACHE_FLASH_ATTR mqttStatusCb(void *v) {
     mqttClient.connState != MQTT_CONNECTED)
     return;
 
-  char buf[192];
+  char buf[256];
   mqttStatusMsg(buf);
   MQTT_Publish(&mqttClient, flashConfig.mqtt_status_topic, buf, os_strlen(buf), 1, 0);
 }

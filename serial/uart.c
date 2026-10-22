@@ -231,6 +231,9 @@ uart0_sendStr(const char *str)
 }
 
 static uint32 last_frm_err; // time in us when last framing error message was printed
+// counters reported in the MQTT status message: bytes read from the RX FIFO, framing errors seen,
+// bytes thrown away by the FIFO reset that follows a framing error
+uint32_t uart_rx_bytes, uart_frm_errs, uart_rx_dropped;
 static int uart0_baud_rate = 0; // The baud rate for uart0
 
 /******************************************************************************
@@ -254,6 +257,8 @@ uart0_rx_intr_handler(void *para)
       os_printf("UART framing error (bad baud rate?)\n");
       last_frm_err = now;
     }
+    uart_frm_errs++;
+    uart_rx_dropped += (READ_PERI_REG(UART_STATUS(uart_no)) >> UART_RXFIFO_CNT_S) & UART_RXFIFO_CNT;
     // clear rx fifo (apparently this is not optional at this point)
     SET_PERI_REG_MASK(UART_CONF0(uart_no), UART_RXFIFO_RST);
     CLEAR_PERI_REG_MASK(UART_CONF0(uart_no), UART_RXFIFO_RST);
@@ -298,6 +303,7 @@ uart_recvTask(os_event_t *events)
       buf[length++] = READ_PERI_REG(UART_FIFO(UART0)) & 0xFF;
     }
     //DBG_UART("%d ix %d\n", system_get_time(), length);
+    uart_rx_bytes += length;
 
     for (int i=0; i<MAX_CB; i++) {
       if (uart_recv_cb[i] != NULL) (uart_recv_cb[i])(buf, length);
