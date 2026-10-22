@@ -43,7 +43,7 @@ static void ICACHE_FLASH_ATTR mqttStatusCb(void *v) {
     mqttClient.connState != MQTT_CONNECTED)
     return;
 
-  char buf[256];
+  static char buf[256]; // static: keep it off the small stack
   mqttStatusMsg(buf);
   MQTT_Publish(&mqttClient, flashConfig.mqtt_status_topic, buf, os_strlen(buf), 1, 0);
 }

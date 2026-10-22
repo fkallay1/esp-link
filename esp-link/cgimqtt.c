@@ -34,8 +34,9 @@ int ICACHE_FLASH_ATTR cgiMqttGet(HttpdConnData *connData) {
   if (connData->conn==NULL) return HTTPD_CGI_DONE;
 
   // get the current status topic for display
-  char status_buf1[256], *sb1=status_buf1;
-  char status_buf2[320], *sb2=status_buf2;
+  static char status_buf1[256], status_buf2[320]; // static: keep them off the small stack
+  char *sb1=status_buf1;
+  char *sb2=status_buf2;
   mqttStatusMsg(status_buf1);
   // quote all " for the json, sigh...
   for (int i=0; i<318 && *sb1; i++) {
